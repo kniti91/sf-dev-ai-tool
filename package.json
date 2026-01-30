@@ -1,0 +1,23 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "axios": "^1.13.3",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jest": "^30.2.0",
+    "jsforce": "^3.10.13",
+    "jszip": "^3.10.1",
+    "openai": "^6.16.0"
+  }
+}

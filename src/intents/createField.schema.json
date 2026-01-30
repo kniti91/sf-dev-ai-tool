@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Create Custom Field Intent",
+  "type": "object",
+  "required": ["intent", "object", "field"],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "enum": ["CREATE_FIELD"]
+    },
+    "object": {
+      "type": "string"
+    },
+    "field": {
+      "type": "object",
+      "required": ["label", "apiName", "type"],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "apiName": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_]+__c$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Text", "Number", "Checkbox", "Date", "Picklist"]
+        },
+        "length": {
+          "type": "number"
+        },
+        "precision": {
+          "type": "number"
+        },
+        "scale": {
+          "type": "number"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

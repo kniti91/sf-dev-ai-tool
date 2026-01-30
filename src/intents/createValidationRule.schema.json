@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Create Validation Rule Intent",
+  "type": "object",
+  "required": ["intent", "object", "ruleName", "formula", "errorMessage"],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "enum": ["CREATE_VALIDATION_RULE"]
+    },
+    "object": {
+      "type": "string"
+    },
+    "ruleName": {
+      "type": "string"
+    },
+    "formula": {
+      "type": "string"
+    },
+    "errorMessage": {
+      "type": "string"
+    },
+    "errorLocation": {
+      "type": "string",
+      "enum": ["Top", "Field"],
+      "default": "Top"
+    },
+    "errorField": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

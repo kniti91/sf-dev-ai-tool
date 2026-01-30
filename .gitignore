@@ -1,0 +1,23 @@
+# Node / package artifacts
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment / secrets
+.env
+.env.*
+
+# Build output
+compiled/
+dist/
+coverage/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log
+
+# Local tooling
+.vscode/
+.idea/
+.npmrc
