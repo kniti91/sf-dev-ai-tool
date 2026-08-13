@@ -1,0 +1,397 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum OrgEnvironment {
+  PRODUCTION
+  SANDBOX
+}
+
+enum OrgConnectionStatus {
+  CONNECTED
+  REAUTHORIZATION_REQUIRED
+  DISCONNECTED
+}
+
+enum ArtifactType {
+  APEX_CLASS
+  APEX_TRIGGER
+  LWC_BUNDLE
+  FLOW
+  VALIDATION_RULE
+}
+
+enum AnalysisRunStatus {
+  QUEUED
+  RUNNING
+  PARTIAL
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum AnalysisItemStatus {
+  QUEUED
+  RUNNING
+  REUSED
+  COMPLETED
+  SKIPPED
+  FAILED
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFORMATIONAL
+}
+
+enum FindingDisposition {
+  OPEN
+  RESOLVED
+  ACCEPTED_RISK
+  FALSE_POSITIVE
+}
+
+model User {
+  id             String                @id @default(cuid())
+  email          String                @unique
+  displayName    String
+  passwordHash   String
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  memberships    WorkspaceMembership[]
+  sessions       Session[]
+  connectedOrgs  OrgConnection[]       @relation("OrgConnectedBy")
+  analysisRuns   AnalysisRun[]         @relation("AnalysisRequestedBy")
+  oauthStates    OAuthAuthorizationState[]
+}
+
+model Workspace {
+  id             String                @id @default(cuid())
+  name           String
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  memberships    WorkspaceMembership[]
+  orgConnections OrgConnection[]
+  analysisRuns   AnalysisRun[]
+  oauthStates    OAuthAuthorizationState[]
+}
+
+model WorkspaceMembership {
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model OAuthAuthorizationState {
+  id           String         @id @default(cuid())
+  stateHash    String         @unique
+  workspaceId  String
+  userId       String
+  environment  OrgEnvironment
+  pkceVerifier String         @db.Text
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  workspace    Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([workspaceId, userId])
+}
+
+model OrgConnection {
+  id                       String                @id @default(cuid())
+  workspaceId              String
+  connectedByUserId        String
+  salesforceOrgId          String
+  label                    String
+  username                 String
+  environment              OrgEnvironment
+  instanceUrl              String
+  status                   OrgConnectionStatus   @default(CONNECTED)
+  lastDiscoveredAt         DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  workspace                Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  connectedBy              User                  @relation("OrgConnectedBy", fields: [connectedByUserId], references: [id])
+  oauthToken               OrgOAuthToken?
+  artifacts                Artifact[]
+  metadataComponents       MetadataComponent[]
+  dependencyEdges          DependencyEdge[]
+  analysisRuns             AnalysisRun[]
+
+  @@unique([workspaceId, salesforceOrgId])
+  @@index([workspaceId, status])
+}
+
+model MetadataComponent {
+  id                   String           @id
+  orgConnectionId      String
+  identityKey          String
+  salesforceMetadataId String?
+  type                 String
+  name                 String
+  label                String?
+  namespace            String?
+  parentIdentityKey    String?
+  active               Boolean?
+  attributes           Json
+  salesforceModifiedAt DateTime?
+  discoveredAt         DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  orgConnection        OrgConnection    @relation(fields: [orgConnectionId], references: [id], onDelete: Cascade)
+  outgoingDependencies DependencyEdge[] @relation("DependencySource")
+  incomingDependencies DependencyEdge[] @relation("DependencyTarget")
+
+  @@unique([orgConnectionId, identityKey])
+  @@index([orgConnectionId, type, active])
+  @@index([orgConnectionId, name])
+  @@index([orgConnectionId, parentIdentityKey])
+}
+
+model DependencyEdge {
+  id                  String            @id @default(cuid())
+  orgConnectionId     String
+  sourceComponentId   String
+  targetComponentId   String
+  relationshipType    String
+  evidenceType        String
+  confidence          Float
+  sourceLocation      Json?
+  discoveredAt        DateTime          @default(now())
+  orgConnection       OrgConnection     @relation(fields: [orgConnectionId], references: [id], onDelete: Cascade)
+  sourceComponent     MetadataComponent @relation("DependencySource", fields: [sourceComponentId], references: [id], onDelete: Cascade)
+  targetComponent     MetadataComponent @relation("DependencyTarget", fields: [targetComponentId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceComponentId, targetComponentId, relationshipType])
+  @@index([orgConnectionId, relationshipType])
+  @@index([targetComponentId])
+}
+
+model OrgOAuthToken {
+  orgConnectionId       String   @id
+  encryptedAccessToken  String   @db.Text
+  encryptedRefreshToken String?  @db.Text
+  encryptionKeyVersion  Int      @default(1)
+  accessTokenExpiresAt  DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  orgConnection         OrgConnection @relation(fields: [orgConnectionId], references: [id], onDelete: Cascade)
+}
+
+model Artifact {
+  id                   String            @id @default(cuid())
+  orgConnectionId      String
+  identityKey          String
+  salesforceMetadataId String?
+  type                 ArtifactType
+  name                 String
+  namespace            String?
+  apiVersion           String?
+  salesforceModifiedAt DateTime?
+  isDeleted            Boolean           @default(false)
+  currentVersionId     String?            @unique
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  orgConnection        OrgConnection      @relation(fields: [orgConnectionId], references: [id], onDelete: Cascade)
+  currentVersion       ArtifactVersion?   @relation("CurrentArtifactVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions             ArtifactVersion[]  @relation("ArtifactVersions")
+  runItems             AnalysisRunItem[]
+
+  @@unique([orgConnectionId, identityKey])
+  @@index([orgConnectionId, type, isDeleted])
+  @@index([orgConnectionId, name])
+}
+
+model ArtifactVersion {
+  id                    String                    @id @default(cuid())
+  artifactId            String
+  contentHash           String
+  sourceSizeBytes       Int
+  apiVersion            String?
+  salesforceModifiedAt  DateTime?
+  retrievedAt           DateTime                  @default(now())
+  artifact              Artifact                  @relation("ArtifactVersions", fields: [artifactId], references: [id], onDelete: Cascade)
+  currentForArtifacts   Artifact[]                @relation("CurrentArtifactVersion")
+  analysisResults       ComponentAnalysisResult[]
+  runItems              AnalysisRunItem[]
+
+  @@unique([artifactId, contentHash])
+  @@index([artifactId, retrievedAt])
+}
+
+model AnalysisRun {
+  id                    String                 @id @default(cuid())
+  workspaceId           String
+  orgConnectionId       String
+  requestedByUserId     String
+  name                  String
+  status                AnalysisRunStatus      @default(QUEUED)
+  scope                  String
+  requestSnapshot       Json
+  selectedCounts        Json
+  requestedArtifactCount Int
+  completedArtifactCount Int                  @default(0)
+  reusedArtifactCount    Int                  @default(0)
+  failedArtifactCount    Int                  @default(0)
+  currentStage           String               @default("queued")
+  currentBatch           Int                  @default(0)
+  totalBatches           Int                  @default(0)
+  overallScore          Int?
+  overallSummary        String?                @db.Text
+  summarySnapshot       Json?
+  analyzerVersion       String
+  ruleSetVersion        String
+  scorePolicyVersion    String
+  analysisProfileHash   String
+  aiProvider            String?
+  aiModel               String?
+  promptVersion         String?
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orgConnection         OrgConnection          @relation(fields: [orgConnectionId], references: [id], onDelete: Cascade)
+  requestedBy           User                   @relation("AnalysisRequestedBy", fields: [requestedByUserId], references: [id])
+  items                 AnalysisRunItem[]
+  categoryScores        AnalysisCategoryScore[]
+
+  @@index([workspaceId, createdAt])
+  @@index([orgConnectionId, createdAt])
+  @@index([workspaceId, status])
+}
+
+model AnalysisRunItem {
+  id                        String                   @id @default(cuid())
+  analysisRunId             String
+  artifactId                String
+  artifactVersionId         String?
+  componentAnalysisResultId String?
+  status                    AnalysisItemStatus       @default(QUEUED)
+  score                     Int?
+  errorCode                 String?
+  errorMessage              String?                  @db.Text
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+  analysisRun               AnalysisRun              @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+  artifact                  Artifact                 @relation(fields: [artifactId], references: [id])
+  artifactVersion           ArtifactVersion?         @relation(fields: [artifactVersionId], references: [id])
+  componentAnalysisResult   ComponentAnalysisResult? @relation(fields: [componentAnalysisResultId], references: [id])
+
+  @@unique([analysisRunId, artifactId])
+  @@index([analysisRunId, status])
+  @@index([componentAnalysisResultId])
+}
+
+model ComponentAnalysisResult {
+  id                   String             @id @default(cuid())
+  artifactVersionId    String
+  analysisProfileHash  String
+  analyzerVersion      String
+  ruleSetVersion       String
+  aiProvider           String?
+  aiModel              String?
+  promptVersion        String?
+  deterministicScore   Int
+  aiScore              Int?
+  combinedScore        Int                 @default(100)
+  deterministicSummary String?            @db.Text
+  aiSummary            String?            @db.Text
+  categoryScores       Json                @default("{}")
+  requiresHumanReview  Boolean             @default(false)
+  metrics              Json
+  createdAt            DateTime           @default(now())
+  artifactVersion      ArtifactVersion    @relation(fields: [artifactVersionId], references: [id], onDelete: Cascade)
+  runItems             AnalysisRunItem[]
+  findings             Finding[]
+
+  @@unique([artifactVersionId, analysisProfileHash])
+  @@index([createdAt])
+}
+
+model Finding {
+  id                        String              @id @default(cuid())
+  componentAnalysisResultId String
+  fingerprint               String
+  ruleId                    String
+  ruleVersion               String
+  severity                  Severity
+  category                  String
+  message                   String              @db.Text
+  evidence                  String              @db.Text
+  lineStart                 Int?
+  lineEnd                   Int?
+  confidence                Float
+  deterministic             Boolean             @default(true)
+  engine                    String
+  disposition               FindingDisposition  @default(OPEN)
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  componentAnalysisResult   ComponentAnalysisResult @relation(fields: [componentAnalysisResultId], references: [id], onDelete: Cascade)
+  recommendations           Recommendation[]
+
+  @@unique([componentAnalysisResultId, fingerprint])
+  @@index([severity, category])
+  @@index([fingerprint])
+}
+
+model Recommendation {
+  id             String   @id @default(cuid())
+  findingId      String
+  provider       String
+  model          String
+  promptVersion  String
+  content        String   @db.Text
+  proposedCode   String?  @db.Text
+  confidence     Float?
+  inputHash      String
+  createdAt      DateTime @default(now())
+  finding        Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@unique([findingId, provider, model, promptVersion, inputHash])
+}
+
+model AnalysisCategoryScore {
+  id            String      @id @default(cuid())
+  analysisRunId String
+  category      String
+  score         Int
+  findingCount  Int
+  summary       String?     @db.Text
+  analysisRun   AnalysisRun @relation(fields: [analysisRunId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisRunId, category])
+}

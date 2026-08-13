@@ -1,23 +1,10 @@
-# Node / package artifacts
 node_modules/
-package-lock.json
-yarn.lock
-
-# Environment / secrets
-.env
-.env.*
-
-# Build output
-compiled/
 dist/
 coverage/
-
-# OS / editor junk
+src/generated/
+.env
+.env.*
+!.env.example
+*.log
 .DS_Store
 Thumbs.db
-*.log
-
-# Local tooling
-.vscode/
-.idea/
-.npmrc

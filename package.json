@@ -1,23 +1,47 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
+  "name": "vibesafe-api",
+  "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "VibeSafe API and scan orchestration foundation",
+  "engines": {
+    "node": ">=20"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
   "dependencies": {
-    "ajv": "^8.17.1",
-    "axios": "^1.13.3",
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "jest": "^30.2.0",
-    "jsforce": "^3.10.13",
-    "jszip": "^3.10.1",
-    "openai": "^6.16.0"
+    "helmet": "^8.1.0",
+    "openai": "^6.49.0",
+    "pg": "^8.22.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.20.4",
+    "@types/supertest": "^6.0.3",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "prisma": "^7.9.1",
+    "supertest": "^7.1.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.50.0",
+    "vitest": "^4.0.16"
   }
 }
